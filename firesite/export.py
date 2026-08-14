@@ -30,6 +30,13 @@ def _round_cells(cells: pd.DataFrame, precision: int = 4) -> list[dict]:
     for column in ("lat", "lon"):
         trimmed[column] = trimmed[column].round(precision)
     keep = ["lat", "lon", "detections", "days", "years", "max_frp", "last_seen"]
+    # Visibility is optional: it only exists when a viewshed has been run.
+    if "visible" in trimmed.columns:
+        keep.append("visible")
+        # pandas nullable booleans do not survive JSON; None means "not checked".
+        trimmed["visible"] = trimmed["visible"].map(
+            lambda v: None if pd.isna(v) else bool(v)
+        )
     return trimmed[keep].to_dict(orient="records")
 
 
@@ -40,9 +47,20 @@ def build_payload(
     cell_deg: float = 0.02,
     title: str = "Fire recurrence",
     max_cells: int = 4000,
+    visibility: pd.DataFrame | None = None,
 ) -> dict:
-    """Everything the viewer needs, as plain JSON-serializable data."""
+    """Everything the viewer needs, as plain JSON-serializable data.
+
+    `visibility` is an optional frame from `terrain.visible_cells`, carrying a
+    `visible` column keyed by the same lat/lon. When present the viewer can show
+    which cells the terrain hides, which is usually the difference between a site
+    that looks good and one that is good.
+    """
     cells = rank_cells(detections, cell_deg=cell_deg)
+    if visibility is not None and not visibility.empty:
+        cells = cells.merge(
+            visibility[["lat", "lon", "visible"]], on=["lat", "lon"], how="left"
+        )
     truncated = len(cells) > max_cells
     profile = temporal_profile(detections)
 
@@ -73,11 +91,23 @@ def build_payload(
             "cells_in_range": report["cells_in_range"],
             "detections_in_range": report["detections_in_range"],
             "coverage": report["coverage"],
+            "visible_detections": _visible_detections(cells, report["cells"]),
             "max_recurrence_years": report["max_recurrence_years"],
             "sectors": {k: float(v) for k, v in report["sectors"].items()},
             "optics": optics.to_dict(orient="records") if not optics.empty else [],
         }
     return payload
+
+
+def _visible_detections(cells: pd.DataFrame, in_range: pd.DataFrame) -> int | None:
+    """Detections in range with a clear line of sight, or None if unchecked."""
+    if "visible" not in cells.columns:
+        return None
+    merged = in_range[["lat", "lon"]].merge(
+        cells[["lat", "lon", "visible"]], on=["lat", "lon"], how="left"
+    )
+    keep = merged["visible"].fillna(False).astype(bool).to_numpy()
+    return int(in_range.loc[keep, "detections"].sum())
 
 
 def write_payload(payload: dict, output: Path) -> Path:

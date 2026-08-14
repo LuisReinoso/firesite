@@ -210,6 +210,13 @@ def cmd_export(args: argparse.Namespace) -> None:
         Path(args.input), args.timezone, args.keep_low_confidence, args.keep_persistent
     )
     site = (args.lat, args.lon) if args.lat is not None and args.lon is not None else None
+
+    visibility = None
+    if args.viewshed:
+        if site is None:
+            raise SystemExit("--viewshed needs --lat and --lon")
+        visibility = _run_viewshed(args, frame, site)
+
     payload = export.build_payload(
         frame,
         site=site,
@@ -217,6 +224,7 @@ def cmd_export(args: argparse.Namespace) -> None:
         cell_deg=args.cell_deg,
         title=args.title,
         max_cells=args.max_cells,
+        visibility=visibility,
     )
     out = export.write_payload(payload, Path(args.output))
     print(f"{len(payload['cells'])} cells -> {out}")
@@ -228,26 +236,32 @@ def cmd_export(args: argparse.Namespace) -> None:
         )
 
 
-def cmd_viewshed(args: argparse.Namespace) -> None:
+def _run_viewshed(
+    args: argparse.Namespace, frame: pd.DataFrame, site: tuple[float, float]
+) -> pd.DataFrame:
+    """Line of sight from `site` to every cell in range. Shared by two commands."""
     from . import terrain
 
-    frame = _load(
-        Path(args.input), args.timezone, args.keep_low_confidence, args.keep_persistent
-    )
     cells = hotspots.rank_cells(frame, cell_deg=args.cell_deg)
-    seen = hotspots.visible_from(args.lat, args.lon, cells, radius_km=args.radius)
+    seen = hotspots.visible_from(site[0], site[1], cells, radius_km=args.radius)
     if seen.empty:
         raise SystemExit("nothing within range of that position")
-
-    tile = terrain.download_tile(args.lat, args.lon, Path(args.cache))
+    tile = terrain.download_tile(site[0], site[1], Path(args.cache))
     print(f"DEM tile: {tile.name}", file=sys.stderr)
-    checked = terrain.visible_cells(
+    return terrain.visible_cells(
         seen,
-        (args.lat, args.lon),
+        site,
         tile,
         observer_height_m=args.observer_height,
         target_height_m=args.target_height,
     )
+
+
+def cmd_viewshed(args: argparse.Namespace) -> None:
+    frame = _load(
+        Path(args.input), args.timezone, args.keep_low_confidence, args.keep_persistent
+    )
+    checked = _run_viewshed(args, frame, (args.lat, args.lon))
 
     known = checked[checked["visible"].notna()]
     offtile = len(checked) - len(known)
@@ -360,6 +374,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--radius", type=float, default=15.0)
     p.add_argument("--title", default="Fire recurrence")
     p.add_argument("--max-cells", type=int, default=4000)
+    p.add_argument(
+        "--viewshed",
+        action="store_true",
+        help="also check line of sight, so the viewer can show what terrain hides",
+    )
+    p.add_argument("--observer-height", type=float, default=5.0)
+    p.add_argument("--target-height", type=float, default=50.0)
+    p.add_argument("--cache", default="dem_cache")
     p.add_argument("--output", default="docs/data/analysis.json")
     _add_common(p)
     p.set_defaults(func=cmd_export)

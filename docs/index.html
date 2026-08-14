@@ -142,7 +142,7 @@
       <div class="hero">
         <div>
           <div class="value" id="site-detections">–</div>
-          <div class="label">detections in range</div>
+          <div class="label" id="site-detections-label">detections in range</div>
         </div>
         <div>
           <div class="value" id="site-years">–</div>
@@ -176,8 +176,9 @@
     </div>
 
     <footer>
-      Fire history from <a href="https://firms.modaps.eosdis.nasa.gov/" rel="noopener">NASA FIRMS</a>.
-      Terrain is not modelled, so a well-scored spot may sit behind a ridge.
+      Fire history from <a href="https://firms.modaps.eosdis.nasa.gov/" rel="noopener">NASA FIRMS</a>,
+      elevation from <a href="https://spacedata.copernicus.eu/" rel="noopener">Copernicus DEM GLO-30</a>.
+      <span id="terrain-note"></span>
       Built with <a href="https://github.com/LuisReinoso/firesite" rel="noopener">firesite</a>.
     </footer>
   </aside>
@@ -251,18 +252,23 @@ function render(data) {
   // Radius scaled by square root so area, not radius, tracks the count. Scaling
   // radius directly would exaggerate the busiest cells several times over.
   const maxDet = Math.max(...data.cells.map(c => c.detections), 1);
+  // A hidden cell keeps its colour but loses its fill: the fire is real, you
+  // just cannot see it from here. Removing it would hide the problem instead.
   for (const cell of data.cells) {
     const band = bandFor(cell.years);
+    const hidden = cell.visible === false;
     L.circleMarker([cell.lat, cell.lon], {
       radius: 3 + 9 * Math.sqrt(cell.detections / maxDet),
       color: css(band.varName),
-      weight: 0.6,
+      weight: hidden ? 1.6 : 0.6,
+      dashArray: hidden ? "2 2" : null,
       fillColor: css(band.varName),
-      fillOpacity: parseFloat(css(band.alphaVar)),
+      fillOpacity: hidden ? 0 : parseFloat(css(band.alphaVar)),
     }).bindPopup(
       `<b>${cell.years} year${cell.years === 1 ? "" : "s"} with fire</b><br>` +
       `${cell.detections} detections over ${cell.days} days<br>` +
-      `peak power ${cell.max_frp} MW<br>last seen ${cell.last_seen}`
+      `peak power ${cell.max_frp} MW<br>last seen ${cell.last_seen}` +
+      (cell.visible === false ? "<br><b>hidden by terrain</b>" : "")
     ).addTo(layer);
   }
 
@@ -270,8 +276,13 @@ function render(data) {
   if (data.site) {
     const s = data.site;
     siteBlock.hidden = false;
-    document.getElementById("site-detections").textContent =
-      s.detections_in_range.toLocaleString();
+    const checked = s.visible_detections !== null && s.visible_detections !== undefined;
+    document.getElementById("site-detections").textContent = checked
+      ? s.visible_detections.toLocaleString()
+      : s.detections_in_range.toLocaleString();
+    document.getElementById("site-detections-label").textContent = checked
+      ? `visible of ${s.detections_in_range.toLocaleString()} in range`
+      : "detections in range";
     document.getElementById("site-years").textContent = s.max_recurrence_years;
 
     L.circle([s.lat, s.lon], {
@@ -300,6 +311,7 @@ function render(data) {
 
   renderLegend(data.cells);
   renderYears(data.by_year);
+  renderTerrainNote(data);
 }
 
 function bars(target, entries, formatValue) {
@@ -339,23 +351,40 @@ function renderOptics(rows) {
     "That threshold is an engineering estimate, not a published constant.";
 }
 
-function renderLegend(cells) {
-  const counts = BANDS.map(b => cells.filter(c => c.years >= b.min && c.years <= b.max).length);
-  document.getElementById("legend").innerHTML = BANDS.map((b, i) => `
-    <div class="legend-row">
-      <span class="dot" style="background:${css(b.varName)}; opacity:${css(b.alphaVar)}"></span>
-      <span>${b.label}</span>
-      <span style="margin-left:auto; color:var(--text-muted)">${counts[i]}</span>
-    </div>`).join("") +
-    `<div class="legend-row" style="margin-top:10px">
-       <span class="dot" style="background:${css("--accent")}"></span>
-       <span>camera site and its reach</span>
-     </div>
-     <p class="sub" style="margin:10px 0 0">Circle area is accumulated detections;
-     colour is how many distinct years the cell burned.</p>`;
+function renderTerrainNote(data) {
+  const checked = data.cells.some(c => c.visible !== undefined && c.visible !== null);
+  document.getElementById("terrain-note").textContent = checked
+    ? "Line of sight was checked against the elevation model; hollow cells are hidden by terrain."
+    : "Terrain was not checked here, so a well-placed dot may sit behind a ridge. Run firesite viewshed.";
 }
 
-applyTheme();
+function renderLegend(cells) {
+  const rows = BANDS.map((b, i) => {
+    const count = cells.filter(c => c.years >= b.min && c.years <= b.max).length;
+    return `<div class="legend-row">
+      <span class="dot" style="background:${css(b.varName)}; opacity:${css(b.alphaVar)}"></span>
+      <span>${b.label}</span>
+      <span style="margin-left:auto; color:var(--text-muted)">${count}</span>
+    </div>`;
+  });
+
+  rows.push(`<div class="legend-row" style="margin-top:10px">
+      <span class="dot" style="background:${css("--accent")}"></span>
+      <span>camera site and its reach</span>
+    </div>`);
+
+  if (cells.some(c => c.visible === false)) {
+    rows.push(`<div class="legend-row">
+      <span class="dot" style="border:1.6px dashed ${css("--ramp-3")}; background:none"></span>
+      <span>hidden by terrain</span>
+    </div>`);
+  }
+
+  rows.push(`<p class="sub" style="margin:10px 0 0">Circle area is accumulated
+    detections; colour is how many distinct years the cell burned.</p>`);
+
+  document.getElementById("legend").innerHTML = rows.join("");
+}
 
 function load(json) {
   try {
