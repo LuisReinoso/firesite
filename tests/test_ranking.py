@@ -45,6 +45,22 @@ class TestNormalize:
         )
         assert normalize(raw)["high_confidence"].tolist() == [True, True, False]
 
+    def test_string_dtype_confidence_maps_to_boolean(self):
+        # pandas 3 stores text as a str dtype rather than object, so a check of
+        # `dtype == object` silently routes letters through the numeric branch
+        # and marks every detection low confidence. Caught by CI, not locally.
+        raw = pd.DataFrame(
+            {
+                "latitude": [0.0, 0.0, 0.0],
+                "longitude": [0.0, 0.0, 0.0],
+                "acq_date": ["2024-08-01"] * 3,
+                "acq_time": ["1200"] * 3,
+                "frp": [10.0] * 3,
+                "confidence": pd.array(["h", "n", "l"], dtype="string"),
+            }
+        )
+        assert normalize(raw)["high_confidence"].tolist() == [True, True, False]
+
     def test_numeric_confidence_maps_to_boolean(self):
         raw = pd.DataFrame(
             {

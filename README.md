@@ -10,7 +10,7 @@ watches ground that never burns, or watches the right ground at a range where a
 new plume covers four pixels. firesite answers it from 14 years of NASA FIRMS
 detections.
 
-**[Open the interactive viewer →](https://luisreinoso.github.io/firesite/)**
+**[Open the interactive viewer →](https://luisreinoso.dev/firesite/)**
 
 ![Fire recurrence around Cotacachi, Ecuador](examples/cotacachi.png)
 
@@ -80,7 +80,7 @@ firesite map fires.csv --lat=0.2885 --lon=-78.2223 --output site.png
 firesite export fires.csv --lat=0.2885 --lon=-78.2223 --output my-area.json
 ```
 
-Drop that JSON onto the [viewer](https://luisreinoso.github.io/firesite/) to explore
+Drop that JSON onto the [viewer](https://luisreinoso.dev/firesite/) to explore
 it in a browser, or publish it yourself and point the page at it with
 `?data=your-file.json`. Nothing is uploaded anywhere: the page reads the file
 locally.

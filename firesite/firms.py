@@ -244,12 +244,17 @@ def normalize(frame: pd.DataFrame, timezone: str = "UTC") -> pd.DataFrame:
     out["month"] = local.dt.month
     out["year"] = local.dt.year
 
+    # Branch on whether the column is numeric, not on `dtype == object`: pandas 3
+    # stores text in a str dtype, so the object check sends l/n/h down the
+    # numeric path, where the letters coerce to NaN and every detection is
+    # silently marked low confidence.
     confidence = out["confidence"]
-    if confidence.dtype == object:
-        text = confidence.astype(str).str.lower()
-        out["high_confidence"] = text.isin(["h", "high", "n", "nominal"])
+    if pd.api.types.is_numeric_dtype(confidence):
+        flag = pd.Series(pd.to_numeric(confidence, errors="coerce")).ge(50)
     else:
-        out["high_confidence"] = pd.Series(pd.to_numeric(confidence, errors="coerce")).ge(
-            50
-        )
+        text = confidence.astype("string").str.strip().str.lower()
+        flag = text.isin(["h", "high", "n", "nominal"])
+    # A missing confidence is not a high one, and leaving NA in place makes the
+    # column unusable as a boolean mask.
+    out["high_confidence"] = flag.fillna(False).astype(bool)
     return out
