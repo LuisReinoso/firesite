@@ -75,6 +75,9 @@ firesite search fires.csv --radius 15
 # same search, re-ranked by what the terrain actually lets each position see
 firesite search fires.csv --radius 15 --viewshed
 
+# which two positions cover the most between them
+firesite search fires.csv --radius 15 --viewshed --cameras 2
+
 # what a spot you can actually use would see
 firesite evaluate fires.csv --lat=0.2885 --lon=-78.2223 --radius 15
 
@@ -135,12 +138,22 @@ tied on range and nowhere near tied in reality:
 The position that looked best saw 29% of what it was ranked for. One that looked
 fourth saw 13%: it would have been a wasted deployment.
 
+`--cameras 2` then asks a different question: not which position is best, but
+which pair covers the most between them. Greedy marginal gain, which for this
+objective is guaranteed within 1 - 1/e of the optimum.
+
+```
+ lat    lon  adds  together of_visible
+0.32 -78.20   577       577        61%
+0.36 -78.24   178       755        80%
+```
+
+The second camera is the position that won on range and saw only 29% alone. As a
+partner it is worth 178 detections the first cannot see, taking the pair from 61%
+to 80% of everything visible in the area.
+
 ## What it will not do
 
-- **One camera at a time.** Choosing the best pair of positions is a covering
-  location problem, and the best pair is not the two best singles. Two cameras
-  that each see 40% may between them see 70% or 45%, depending on whether they
-  are blocked by the same ridge, and firesite cannot yet tell you which.
 - **The shortlist can still miss.** The terrain pass only re-ranks candidates the
   range-only stage surfaced, so a position that ranks 30th on range but sees
   everything is never considered. Raise `--top` to widen the net.

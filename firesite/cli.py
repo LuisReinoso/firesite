@@ -197,9 +197,77 @@ def cmd_search(args: argparse.Namespace) -> None:
             ]
         ).to_string(index=False)
     )
-    moved = ranked[0].site is not sites[0]
-    if moved:
+    if ranked[0].site is not sites[0]:  # pragma: no cover
         print("\nThe range-only winner is not the winner once terrain is counted.")
+
+    if args.cameras > 1:  # pragma: no cover
+        _report_camera_set(args, cells, tile, sites)
+
+
+def _report_camera_set(args, cells, tile, sites) -> None:  # pragma: no cover
+    """Which combination of positions covers the most between them."""
+    from . import coverage, terrain
+
+    print(
+        f"\nchoosing {args.cameras} cameras that complement each other...",
+        file=sys.stderr,
+    )
+
+    options: dict[tuple[float, float], set[str]] = {}
+    weights: dict[str, float] = {}
+    for site in sites:
+        in_range = hotspots.visible_from(site.lat, site.lon, cells, radius_km=args.radius)
+        if in_range.empty:
+            options[(site.lat, site.lon)] = set()
+            continue
+        checked = terrain.visible_cells(
+            in_range,
+            (site.lat, site.lon),
+            tile,
+            observer_height_m=args.observer_height,
+            target_height_m=args.target_height,
+            samples=args.samples,
+        )
+        seen_here = checked.loc[checked["visible"].fillna(False).astype(bool)]
+        # A cell is identified by its rounded centre, so the same ground seen from
+        # two positions is one cell and is never counted twice.
+        options[(site.lat, site.lon)] = {
+            f"{r.lat:.4f},{r.lon:.4f}" for r in seen_here.itertuples()
+        }
+        for row in seen_here.itertuples():
+            weights[f"{row.lat:.4f},{row.lon:.4f}"] = float(row.detections)
+
+    chosen = coverage.greedy_cover(options, weights, cameras=args.cameras)
+    if not chosen:
+        print("\nno position sees anything, so there is no camera set to propose")
+        return
+
+    everything = sum(weights.values())
+    print(f"\nbest set of {len(chosen)} cameras:\n")
+    print(
+        pd.DataFrame(
+            [
+                {
+                    "lat": c.key[0],
+                    "lon": c.key[1],
+                    "adds": int(c.added),
+                    "together": int(c.cumulative),
+                    "of_visible": f"{c.cumulative / everything:.0%}" if everything else "-",
+                }
+                for c in chosen
+            ]
+        ).to_string(index=False)
+    )
+    if len(chosen) > 1:
+        print(
+            f"\nThe second camera adds {int(chosen[1].added)} detections the first "
+            f"cannot see, taking the pair from {int(chosen[0].cumulative)} to "
+            f"{int(chosen[-1].cumulative)}."
+        )
+    print(
+        "\nGreedy selection: guaranteed within 1 - 1/e (about 63%) of the best "
+        "possible set,\nand chosen from the shortlist only."
+    )
 
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
@@ -411,6 +479,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=96,
         help="profile samples per sightline; fewer is faster and coarser",
+    )
+    p.add_argument(
+        "--cameras",
+        type=int,
+        default=1,
+        help="propose a set of N cameras that complement each other (needs --viewshed)",
     )
     p.add_argument("--cache", default="dem_cache")
     _add_common(p)
