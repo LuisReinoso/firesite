@@ -10,9 +10,12 @@ watches ground that never burns, or watches the right ground at a range where a
 new plume covers four pixels. firesite answers it from 14 years of NASA FIRMS
 detections.
 
-**[Open the interactive viewer →](https://luisreinoso.dev/firesite/)**
+**[Open the interactive viewer →](https://luisreinoso.dev/firesite/)**  ·  bilingual, animated, filterable
 
-![Fire recurrence around Cotacachi, Ecuador](examples/cotacachi.png)
+![14 years of fire around Cotacachi, Ecuador, playing back year by year](docs/media/firesite-demo.gif)
+
+Fourteen years of fire accumulating around Cotacachi. The hollow circles inside
+the camera's reach are the ones terrain hides: real fire, invisible from there.
 
 ## What it does
 
@@ -182,6 +185,19 @@ known, and which number here has no citation behind it.
 firesite stops at the decision of where to put the camera. For what runs on the
 camera afterwards, see [Pyronear](https://github.com/pyronear): detection models,
 edge runtime, alert API and platform, also Apache-2.0.
+
+## The demo clip
+
+`scripts/record_demo.py` records the viewer itself and encodes an MP4 and a GIF:
+
+```bash
+pip install playwright && playwright install chromium
+python scripts/record_demo.py --serve docs --out docs/media
+```
+
+It drives the real page rather than recreating it in a video tool. A recreation
+drifts from the product the moment either changes, and the point of the clip is
+to show what someone actually gets.
 
 ## Development
 

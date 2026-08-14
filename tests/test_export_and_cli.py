@@ -54,7 +54,16 @@ class TestBuildPayload:
             "years",
             "max_frp",
             "last_seen",
+            "y",
         }
+
+    def test_cells_carry_the_years_they_burned(self):
+        # The viewer plays the history back year by year, so each cell needs the
+        # list of years it burned, not just how many.
+        cell = build_payload(sample())["cells"][0]
+        assert cell["y"] == sorted(cell["y"])
+        assert len(cell["y"]) == cell["years"]
+        assert all(isinstance(year, int) for year in cell["y"])
 
     def test_no_site_means_no_site_block(self):
         assert build_payload(sample())["site"] is None

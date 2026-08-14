@@ -20,6 +20,27 @@ from .siting import evaluate_site
 SCHEMA_VERSION = 1
 
 
+def _years_by_cell(detections: pd.DataFrame, cell_deg: float) -> dict[tuple, list[int]]:
+    """Which years each cell burned, so the viewer can play the history back.
+
+    Sending one record per detection would be tens of thousands of rows; a sorted
+    list of years per cell is a couple of dozen bytes and is all an animation
+    needs.
+    """
+    from .hotspots import gridify
+
+    gridded = gridify(detections, cell_deg)
+    grouped = gridded.groupby("cell")["year"].unique()
+    centres = gridded.groupby("cell")[["latitude", "longitude"]].mean()
+    return {
+        (
+            round(float(centres.loc[cell, "latitude"]), 4),
+            round(float(centres.loc[cell, "longitude"]), 4),
+        ): sorted(int(y) for y in years)
+        for cell, years in grouped.items()
+    }
+
+
 def _round_cells(cells: pd.DataFrame, precision: int = 4) -> list[dict]:
     """Trim coordinates to something a browser can hold comfortably.
 
@@ -73,7 +94,10 @@ def build_payload(
             "last": str(detections["ts_local"].max())[:10] if len(detections) else None,
             "cell_deg": cell_deg,
         },
-        "cells": _round_cells(cells.head(max_cells)),
+        "cells": _with_years(
+            _round_cells(cells.head(max_cells)),
+            _years_by_cell(detections, cell_deg),
+        ),
         "cells_truncated": truncated,
         "by_year": {int(k): int(v) for k, v in profile["by_year"].items()},
         "by_month": {int(k): int(v) for k, v in profile["by_month"].items()},
@@ -97,6 +121,13 @@ def build_payload(
             "optics": optics.to_dict(orient="records") if not optics.empty else [],
         }
     return payload
+
+
+def _with_years(records: list[dict], years_by_cell: dict) -> list[dict]:
+    """Attach the burn years to each exported cell, keyed by rounded centre."""
+    for record in records:
+        record["y"] = years_by_cell.get((record["lat"], record["lon"]), [])
+    return records
 
 
 def _visible_detections(cells: pd.DataFrame, in_range: pd.DataFrame) -> int | None:

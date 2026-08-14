@@ -23,3 +23,6 @@ firms_cache/
 
 # Tooling scratch
 .playwright-mcp/
+
+# Recording scratch
+docs/media/frames/
