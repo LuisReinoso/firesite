@@ -47,8 +47,9 @@ def serve(directory: Path):
         server.shutdown()
 
 
-def capture(url: str, frames_dir: Path, width: int, height: int,
-            dataset: str, theme: str) -> int:
+def capture(
+    url: str, frames_dir: Path, width: int, height: int, dataset: str, theme: str
+) -> int:
     from playwright.sync_api import sync_playwright
 
     frames_dir.mkdir(parents=True, exist_ok=True)
@@ -57,8 +58,9 @@ def capture(url: str, frames_dir: Path, width: int, height: int,
 
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": width, "height": height},
-                                device_scale_factor=2)
+        page = browser.new_page(
+            viewport={"width": width, "height": height}, device_scale_factor=2
+        )
         page.goto(f"{url}/?data={dataset}", wait_until="networkidle")
         # Set the attribute and refresh the basemap directly. Clicking the toggle
         # as well would flip it straight back, which silently produced the wrong
@@ -100,23 +102,61 @@ def encode(frames_dir: Path, out_dir: Path, fps: int) -> list[Path]:
     pattern = str(frames_dir / "%03d.png")
 
     subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i", pattern,
-         # yuv420p and even dimensions are what social platforms will actually play.
-         "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-pix_fmt", "yuv420p",
-         "-c:v", "libx264", "-crf", "20", str(mp4)],
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-framerate",
+            str(fps),
+            "-i",
+            pattern,
+            # yuv420p and even dimensions are what social platforms will actually play.
+            "-vf",
+            "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:v",
+            "libx264",
+            "-crf",
+            "20",
+            str(mp4),
+        ],
         check=True,
     )
     palette = frames_dir / "palette.png"
     subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i", pattern,
-         "-vf", "scale=900:-1:flags=lanczos,palettegen=stats_mode=diff", str(palette)],
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-framerate",
+            str(fps),
+            "-i",
+            pattern,
+            "-vf",
+            "scale=900:-1:flags=lanczos,palettegen=stats_mode=diff",
+            str(palette),
+        ],
         check=True,
     )
     subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(fps), "-i", pattern,
-         "-i", str(palette), "-lavfi",
-         "scale=900:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3",
-         str(gif)],
+        [
+            "ffmpeg",
+            "-y",
+            "-loglevel",
+            "error",
+            "-framerate",
+            str(fps),
+            "-i",
+            pattern,
+            "-i",
+            str(palette),
+            "-lavfi",
+            "scale=900:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=3",
+            str(gif),
+        ],
         check=True,
     )
     palette.unlink(missing_ok=True)
@@ -124,8 +164,9 @@ def encode(frames_dir: Path, out_dir: Path, fps: int) -> list[Path]:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--serve", default="docs", help="directory holding index.html")
     p.add_argument("--dataset", default="data/cotacachi.json")
     p.add_argument("--out", default="docs/media")
