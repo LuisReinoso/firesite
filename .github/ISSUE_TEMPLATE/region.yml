@@ -1,0 +1,24 @@
+name: Region report
+description: How the tool behaved on a fire regime it has not been tested against
+labels: [region, data]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        The persistent-source filter and the recurrence weighting were tuned on
+        Andean data. Reports from boreal, Mediterranean, savanna or boreal-peat
+        regimes are the most useful thing you can send.
+  - type: input
+    attributes:
+      label: Region and bounding box
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: What the filter excluded
+      description: >
+        Run with and without --keep-persistent and say whether the excluded cells
+        were really kilns, flares or quarries when checked on a satellite basemap.
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: Anything that looked wrong

@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "firesite"
+version = "0.1.0"
+description = "Decide where to put a wildfire detection camera, using NASA FIRMS fire history"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["wildfire", "fire detection", "FIRMS", "VIIRS", "remote sensing", "siting"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering :: GIS",
+]
+dependencies = [
+  "pandas>=2.0",
+  "requests>=2.31",
+  "numpy>=1.24",
+  "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.6", "pre-commit>=3.5"]
+
+[project.urls]
+Homepage = "https://github.com/LuisReinoso/firesite"
+Issues = "https://github.com/LuisReinoso/firesite/issues"
+
+[project.scripts]
+firesite = "firesite.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["firesite*"]
+
+[tool.ruff]
+line-length = 92
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RUF"]
+# RUF001/RUF002/RUF003: the docs and comments are partly Spanish and use
+# accented characters and typographic marks on purpose.
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests exercise private helpers by design.
+"tests/*" = ["SLF001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,0 +1,24 @@
+name: Bug report
+description: Something behaves differently from what the docs say
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: Include the exact command and the output.
+      render: shell
+    validations: { required: true }
+  - type: textarea
+    attributes:
+      label: What you expected instead
+    validations: { required: true }
+  - type: input
+    attributes:
+      label: Area analysed
+      description: "Bounding box or coordinates, so the case can be reproduced."
+      placeholder: "--lat=0.2885 --lon=-78.2223 --radius 15"
+  - type: input
+    attributes:
+      label: firesite version
+      placeholder: "firesite --version"
+    validations: { required: true }

@@ -1,0 +1,25 @@
+# Credentials. FIRMS_MAP_KEY belongs in the environment, never in the tree.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Data pulled from FIRMS. Regenerable and large.
+firms_cache/
+*.csv
+!tests/**/*.csv
+
+# Tooling scratch
+.playwright-mcp/
