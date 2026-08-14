@@ -59,7 +59,7 @@ jobs:
       - run: pip install -e ".[dev]"
       # No network in CI: every test runs against in-memory frames on purpose,
       # so a FIRMS outage or a spent quota can never turn the build red.
-      - run: pytest -q --cov=firesite --cov-report=term-missing --cov-fail-under=80
+      - run: pytest -q --cov=firesite --cov-report=term-missing --cov-fail-under=80 --cov-report=xml
 
   package:
     name: Build and verify the package
