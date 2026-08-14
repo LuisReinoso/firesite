@@ -228,6 +228,64 @@ def cmd_export(args: argparse.Namespace) -> None:
         )
 
 
+def cmd_viewshed(args: argparse.Namespace) -> None:
+    from . import terrain
+
+    frame = _load(
+        Path(args.input), args.timezone, args.keep_low_confidence, args.keep_persistent
+    )
+    cells = hotspots.rank_cells(frame, cell_deg=args.cell_deg)
+    seen = hotspots.visible_from(args.lat, args.lon, cells, radius_km=args.radius)
+    if seen.empty:
+        raise SystemExit("nothing within range of that position")
+
+    tile = terrain.download_tile(args.lat, args.lon, Path(args.cache))
+    print(f"DEM tile: {tile.name}", file=sys.stderr)
+    checked = terrain.visible_cells(
+        seen,
+        (args.lat, args.lon),
+        tile,
+        observer_height_m=args.observer_height,
+        target_height_m=args.target_height,
+    )
+
+    known = checked[checked["visible"].notna()]
+    offtile = len(checked) - len(known)
+    visible = known[known["visible"].astype(bool)]
+    total_det = int(known["detections"].sum())
+    seen_det = int(visible["detections"].sum())
+
+    print(f"site {args.lat}, {args.lon} within {args.radius:g} km\n")
+    print(f"  {len(visible)}/{len(known)} cells have a clear line of sight")
+    print(
+        f"  {seen_det}/{total_det} detections "
+        f"({seen_det / total_det:.0%}) are actually visible"
+    )
+    if offtile:
+        print(f"  {offtile} cells fall outside the downloaded tile and were skipped")
+    print(
+        f"\n  observer {args.observer_height:g} m above ground, "
+        f"target {args.target_height:g} m (a rising plume, not the ground)"
+    )
+    print(
+        "  Copernicus GLO-30 is a surface model, so canopy and buildings count "
+        "as terrain\n  and it blocks slightly more than bare earth would."
+    )
+
+    if args.csv:
+        checked.to_csv(args.csv, index=False)
+        print(f"\n  per-cell results -> {args.csv}")
+
+    hidden = known[~known["visible"].astype(bool)].nlargest(5, "detections")
+    if not hidden.empty:
+        print("\nbusiest cells that are blocked:")
+        print(
+            hidden[
+                ["distance_km", "bearing", "detections", "years", "clearance_m"]
+            ].to_string(index=False)
+        )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="firesite",
@@ -305,6 +363,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--output", default="docs/data/analysis.json")
     _add_common(p)
     p.set_defaults(func=cmd_export)
+
+    p = sub.add_parser(
+        "viewshed", help="check which cells the terrain actually lets you see"
+    )
+    p.add_argument("input")
+    p.add_argument("--lat", type=float, required=True)
+    p.add_argument("--lon", type=float, required=True)
+    p.add_argument("--radius", type=float, default=15.0)
+    p.add_argument(
+        "--observer-height", type=float, default=5.0, help="camera height above ground"
+    )
+    p.add_argument(
+        "--target-height",
+        type=float,
+        default=50.0,
+        help="height of the smoke column to be seen, not of the ground",
+    )
+    p.add_argument("--cache", default="dem_cache", help="where to keep DEM tiles")
+    p.add_argument("--csv", help="write per-cell visibility to this file")
+    _add_common(p)
+    p.set_defaults(func=cmd_viewshed)
 
     return parser
 

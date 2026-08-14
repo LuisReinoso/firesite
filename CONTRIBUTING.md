@@ -62,10 +62,10 @@ plus a coverage floor of 80%.
 
 ## Most wanted
 
-1. **Terrain and line of sight.** The largest gap by far. Every published siting
-   method is built on a digital elevation model, and firesite ignores terrain
-   entirely, so a highly ranked position may sit behind a ridge. See
-   `docs/literature.md`.
+1. **Visibility inside the search.** `viewshed` checks one position after the
+   fact; `search` still ranks candidates on range alone. Folding line of sight
+   into the search is the obvious next step, and the expensive one, since it
+   multiplies the profile computation by the size of the grid.
 2. **Multi-camera placement.** The literature frames this as a covering location
    problem, where the best pair of sites is not the two best individual ones.
    The current search cannot express that.

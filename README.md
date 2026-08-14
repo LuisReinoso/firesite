@@ -26,6 +26,8 @@ detections.
 - Reports what one specific position would see, which is the question that
   matters once you know where you can get permission.
 - Tells you which sensor and lens actually resolve those distances.
+- Checks what the terrain actually lets you see, against a free global elevation
+  model. This is usually the number that changes the answer.
 
 That last part is the one people skip. A site can cover 60% of the historical
 fires and still be useless:
@@ -73,6 +75,10 @@ firesite search fires.csv --radius 15
 # what a spot you can actually use would see
 firesite evaluate fires.csv --lat=0.2885 --lon=-78.2223 --radius 15
 
+# how much of that the terrain actually lets you see
+pip install "firesite[terrain]"
+firesite viewshed fires.csv --lat=0.2885 --lon=-78.2223 --radius 15
+
 # a map
 firesite map fires.csv --lat=0.2885 --lon=-78.2223 --output site.png
 
@@ -101,10 +107,23 @@ print(report["coverage"], report["sectors"])
 print(report["optics"])
 ```
 
+On a real Andean site, terrain turned out to hide almost half of it:
+
+```
+  55/125 cells have a clear line of sight
+  625/1161 detections (54%) are actually visible
+```
+
+Raising the mast from 2 m to 20 m recovered two percentage points. The
+obstruction is mountain-scale, so height does not fix it; a second camera does.
+
 ## What it will not do
 
-- **No terrain.** A winning position may sit behind a ridge. Check the shortlist
-  against a topographic map before believing it.
+- **The site search still ignores terrain.** `search` ranks positions on range
+  alone; `viewshed` then tells you how much of that a given position really sees.
+  Run both. Folding visibility into the search itself is not done yet.
+- **One camera at a time.** Choosing the best pair of positions is a covering
+  location problem, and the best pair is not the two best singles.
 - **Satellites miss small fires.** VIIRS at 375 m sees the fire once it is
   already sizeable, which is exactly what a camera is meant to catch earlier. The
   history is therefore biased toward large events. Cross-check against fire
@@ -119,8 +138,9 @@ print(report["optics"])
 The method was built from first principles and checked against the published work
 afterwards. Combining fire likelihood with siting optimization is an established
 approach, accessibility is a formal criterion rather than a compromise, and a
-15 km working radius sits in the usual range. The gap is terrain: every serious
-siting study is built on a digital elevation model and firesite is not.
+15 km working radius sits in the usual range. Terrain was the outstanding gap and
+`firesite viewshed` now closes the worst of it, though the position search itself
+still does not account for visibility.
 [`docs/literature.md`](docs/literature.md) sets out what held up, what was already
 known, and which number here has no citation behind it.
 

@@ -47,13 +47,14 @@ thing that makes a deployment usable.
 
 ## Where firesite is behind the state of the art
 
-**No viewshed, and that is the central technique in the literature.** Every
-serious siting study is built on a digital elevation model: line-of-sight
+**Viewshed is the central technique, and firesite only half implements it.**
+Every serious siting study is built on a digital elevation model: line-of-sight
 computation, terrain masking, and in Nel's case geomorphon landform
 classification to shortlist candidates before optimizing.<sup>[2][3]</sup>
-firesite ignores terrain entirely, so a position it ranks highly may sit behind a
-ridge. This is the single largest gap and the most useful contribution anyone
-could make.
+`firesite viewshed` now computes line of sight from one position to each fire
+cell, with Earth curvature and standard refraction. What it does not do is fold
+visibility into the position search, so `search` still ranks candidates as though
+the ground were flat. Closing that is the most useful contribution available.
 
 **The site search is naive.** The published framing is the covering location
 problem, solved with integer linear programming or metaheuristics, and it handles

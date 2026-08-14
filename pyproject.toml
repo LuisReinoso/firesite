@@ -25,7 +25,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.6", "pre-commit>=3.5"]
+dev = ["pytest>=7.4", "pytest-cov>=4.1", "ruff>=0.6", "pre-commit>=3.5", "rasterio>=1.3"]
+# Terrain and line of sight. Kept optional because rasterio pulls in GDAL.
+terrain = ["rasterio>=1.3"]
 
 [project.urls]
 Homepage = "https://github.com/LuisReinoso/firesite"
