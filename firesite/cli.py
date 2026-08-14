@@ -142,10 +142,64 @@ def cmd_search(args: argparse.Namespace) -> None:
             ]
         ).to_string(index=False)
     )
-    print(
-        "\nTerrain is not modelled: check the winners against a topographic map "
-        "and against where you can get permission."
+    if not args.viewshed:
+        print(
+            "\nRanked on range alone. Pass --viewshed to check what the terrain "
+            "actually lets each position see; it usually reorders this table."
+        )
+        return
+
+    # Everything past here needs a DEM tile off the network, so it is excluded
+    # from coverage rather than mocked: the logic worth testing already lives in
+    # siting.rerank_by_visibility and terrain.line_of_sight, both pure.
+    from . import terrain  # pragma: no cover
+
+    print(  # pragma: no cover
+        f"\nchecking line of sight from the top {len(sites)} positions...",
+        file=sys.stderr,
     )
+    tile = terrain.download_tile(
+        sites[0].lat, sites[0].lon, Path(args.cache)
+    )  # pragma: no cover
+
+    def visible_detections(site, ranked_cells):  # pragma: no cover
+        in_range = hotspots.visible_from(
+            site.lat, site.lon, ranked_cells, radius_km=args.radius
+        )
+        if in_range.empty:
+            return 0
+        checked = terrain.visible_cells(
+            in_range,
+            (site.lat, site.lon),
+            tile,
+            observer_height_m=args.observer_height,
+            target_height_m=args.target_height,
+            samples=args.samples,
+        )
+        keep = checked["visible"].fillna(False).astype(bool)
+        return int(checked.loc[keep, "detections"].sum())
+
+    ranked = siting.rerank_by_visibility(
+        sites, cells, visible_detections
+    )  # pragma: no cover
+    print("\nafter checking the terrain:\n")  # pragma: no cover
+    print(
+        pd.DataFrame(
+            [
+                {
+                    "lat": r.site.lat,
+                    "lon": r.site.lon,
+                    "in_range": r.site.detections,
+                    "visible": r.visible_detections,
+                    "share": f"{r.visible_share:.0%}",
+                }
+                for r in ranked
+            ]
+        ).to_string(index=False)
+    )
+    moved = ranked[0].site is not sites[0]
+    if moved:
+        print("\nThe range-only winner is not the winner once terrain is counted.")
 
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
@@ -345,6 +399,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--radius", type=float, default=15.0, help="camera reach in km")
     p.add_argument("--step", type=float, default=0.02, help="search grid step in degrees")
     p.add_argument("--top", type=int, default=10)
+    p.add_argument(
+        "--viewshed",
+        action="store_true",
+        help="re-rank the shortlist by what the terrain actually lets each position see",
+    )
+    p.add_argument("--observer-height", type=float, default=5.0)
+    p.add_argument("--target-height", type=float, default=50.0)
+    p.add_argument(
+        "--samples",
+        type=int,
+        default=96,
+        help="profile samples per sightline; fewer is faster and coarser",
+    )
+    p.add_argument("--cache", default="dem_cache")
     _add_common(p)
     p.set_defaults(func=cmd_search)
 

@@ -207,3 +207,53 @@ class TestPlot:
     def test_creates_missing_directories(self, tmp_path):
         out = plot.recurrence_map(sample(), output=tmp_path / "deep" / "c.png")
         assert out.exists()
+
+
+class TestFlagsAndGuards:
+    """Paths that need no network but would otherwise go unexercised."""
+
+    @pytest.fixture
+    def csv(self, tmp_path):
+        raw = pd.DataFrame(
+            {
+                "latitude": [0.30 + 0.01 * i for i in range(6)],
+                "longitude": [-78.22 - 0.01 * i for i in range(6)],
+                "acq_date": [f"{2020 + (i % 3)}-0{1 + i % 9}-15" for i in range(6)],
+                "acq_time": ["1200"] * 6,
+                "frp": [2.0 if i < 3 else 60.0 for i in range(6)],
+                "confidence": ["h", "h", "h", "h", "l", "h"],
+            }
+        )
+        path = tmp_path / "fires.csv"
+        raw.to_csv(path, index=False)
+        return path
+
+    def test_export_viewshed_without_coordinates_is_refused(self, csv, tmp_path):
+        # Failing early beats downloading a DEM tile for a site that is not set.
+        with pytest.raises(SystemExit):
+            main(["export", str(csv), "--viewshed", "--output", str(tmp_path / "x.json")])
+
+    def test_search_without_viewshed_says_so(self, csv, capsys):
+        main(["search", str(csv), "--radius", "25", "--step", "0.1", "--top", "2"])
+        assert "--viewshed" in capsys.readouterr().out
+
+    def test_keep_low_confidence_admits_more_detections(self, csv, capsys):
+        main(["rank", str(csv)])
+        strict = capsys.readouterr().out
+        main(["rank", str(csv), "--keep-low-confidence"])
+        loose = capsys.readouterr().out
+        assert strict.split(" detections")[0] < loose.split(" detections")[0]
+
+    def test_keep_persistent_reports_nothing_dropped(self, csv, capsys):
+        main(["rank", str(csv), "--keep-persistent"])
+        assert "fixed thermal sources" not in capsys.readouterr().err
+
+    def test_evaluate_writes_the_cells_csv_when_asked(self, csv, tmp_path, capsys):
+        out = tmp_path / "cells.csv"
+        main(["evaluate", str(csv), "--lat=0.30", "--lon=-78.22", "--csv", str(out)])
+        assert out.exists()
+        assert "distance_km" in out.read_text()
+
+    def test_export_truncation_warns_on_stderr(self, csv, tmp_path, capsys):
+        main(["export", str(csv), "--max-cells", "1", "--output", str(tmp_path / "y.json")])
+        assert "max-cells" in capsys.readouterr().err

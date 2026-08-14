@@ -62,13 +62,15 @@ plus a coverage floor of 80%.
 
 ## Most wanted
 
-1. **Visibility inside the search.** `viewshed` checks one position after the
-   fact; `search` still ranks candidates on range alone. Folding line of sight
-   into the search is the obvious next step, and the expensive one, since it
-   multiplies the profile computation by the size of the grid.
-2. **Multi-camera placement.** The literature frames this as a covering location
+1. **Multi-camera placement.** The literature frames this as a covering location
    problem, where the best pair of sites is not the two best individual ones.
-   The current search cannot express that.
+   Two positions each seeing 40% may jointly see 70% or 45% depending on whether
+   the same ridge blocks both. The current search cannot express that.
+2. **A cheaper visibility pass.** `search --viewshed` only re-ranks the shortlist
+   the range-only stage produced, because a full terrain-aware search is
+   quadratic in the grid. A faster sightline (vectorised profiles, a reusable
+   horizon per azimuth) would let the terrain pass run over the whole search
+   space instead of a shortlist.
 3. **Fire histories from other regions** to test the persistent-source filter
    against. It was tuned on Andean data and has not been checked against boreal,
    Mediterranean or savanna fire regimes.

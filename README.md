@@ -72,6 +72,9 @@ firesite rank fires.csv --timezone America/Guayaquil
 # best positions anywhere in the area
 firesite search fires.csv --radius 15
 
+# same search, re-ranked by what the terrain actually lets each position see
+firesite search fires.csv --radius 15 --viewshed
+
 # what a spot you can actually use would see
 firesite evaluate fires.csv --lat=0.2885 --lon=-78.2223 --radius 15
 
@@ -117,13 +120,30 @@ On a real Andean site, terrain turned out to hide almost half of it:
 Raising the mast from 2 m to 20 m recovered two percentage points. The
 obstruction is mountain-scale, so height does not fix it; a second camera does.
 
+`search --viewshed` shortlists on range and then re-ranks on line of sight, which
+routinely changes the answer. On a real Andean search the top two candidates were
+tied on range and nowhere near tied in reality:
+
+```
+ lat    lon  in_range  visible share
+0.32 -78.20      1358      577   42%
+0.36 -78.20      1340      547   41%
+0.36 -78.24      1360      391   29%   <- the range-only winner
+0.40 -78.24      1290      170   13%
+```
+
+The position that looked best saw 29% of what it was ranked for. One that looked
+fourth saw 13%: it would have been a wasted deployment.
+
 ## What it will not do
 
-- **The site search still ignores terrain.** `search` ranks positions on range
-  alone; `viewshed` then tells you how much of that a given position really sees.
-  Run both. Folding visibility into the search itself is not done yet.
 - **One camera at a time.** Choosing the best pair of positions is a covering
-  location problem, and the best pair is not the two best singles.
+  location problem, and the best pair is not the two best singles. Two cameras
+  that each see 40% may between them see 70% or 45%, depending on whether they
+  are blocked by the same ridge, and firesite cannot yet tell you which.
+- **The shortlist can still miss.** The terrain pass only re-ranks candidates the
+  range-only stage surfaced, so a position that ranks 30th on range but sees
+  everything is never considered. Raise `--top` to widen the net.
 - **Satellites miss small fires.** VIIRS at 375 m sees the fire once it is
   already sizeable, which is exactly what a camera is meant to catch earlier. The
   history is therefore biased toward large events. Cross-check against fire

@@ -56,3 +56,13 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.coverage.run]
+branch = false
+
+[tool.coverage.report]
+exclude_also = [
+  # Network and DEM I/O. The logic they wrap is pure and tested directly.
+  "if TYPE_CHECKING:",
+  "raise TerrainUnavailable",
+]

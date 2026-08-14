@@ -51,10 +51,11 @@ thing that makes a deployment usable.
 Every serious siting study is built on a digital elevation model: line-of-sight
 computation, terrain masking, and in Nel's case geomorphon landform
 classification to shortlist candidates before optimizing.<sup>[2][3]</sup>
-`firesite viewshed` now computes line of sight from one position to each fire
-cell, with Earth curvature and standard refraction. What it does not do is fold
-visibility into the position search, so `search` still ranks candidates as though
-the ground were flat. Closing that is the most useful contribution available.
+`firesite viewshed` computes line of sight from one position to each fire cell,
+with Earth curvature and standard refraction, and `search --viewshed` uses it to
+re-rank a shortlist, which is the same narrow-then-optimize shape Nel describes.
+What is still missing is the landform classification that shortlists candidates
+on terrain *before* the expensive stage, rather than on range alone.
 
 **The site search is naive.** The published framing is the covering location
 problem, solved with integer linear programming or metaheuristics, and it handles

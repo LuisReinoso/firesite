@@ -46,6 +46,15 @@ MIN_PIXELS_ON_TARGET = 8.0
 
 
 @dataclass(frozen=True)
+class RankedSite:
+    """A candidate after its line of sight has actually been checked."""
+
+    site: Site
+    visible_detections: int
+    visible_share: float
+
+
+@dataclass(frozen=True)
 class Site:
     lat: float
     lon: float
@@ -124,6 +133,48 @@ def search_sites(
             )
     found.sort(key=lambda item: (-item[0], item[1]))
     return [site for _, _, site in found[:top]]
+
+
+def shortlist_sites(
+    cells: pd.DataFrame,
+    bbox: BBox,
+    radius_km: float = 15.0,
+    step_deg: float = 0.02,
+    keep: int = 20,
+) -> list[Site]:
+    """Candidates worth the cost of a visibility check.
+
+    Checking line of sight to every cell from every node of a grid is far too
+    expensive to run over the whole search space, so the range-only search picks
+    a shortlist first and the terrain pass runs only on those. This mirrors the
+    published practice of narrowing candidates before optimizing.
+    """
+    total = int(cells["detections"].sum()) if not cells.empty else 0
+    return search_sites(
+        cells, bbox, total, radius_km=radius_km, step_deg=step_deg, top=keep
+    )
+
+
+def rerank_by_visibility(sites: list[Site], cells, visible_detections) -> list[RankedSite]:
+    """Re-order a shortlist by what each position can actually see.
+
+    `visible_detections(site, cells) -> int` is injected rather than imported so
+    the ordering policy can be tested without a DEM, and so a caller can swap in
+    a cheaper or a more careful visibility model.
+
+    Sites that see nothing are kept, not dropped: a candidate that scores well on
+    range and sees none of it is the most useful thing this stage can report.
+    """
+    ranked = [
+        RankedSite(
+            site=site,
+            visible_detections=(visible := int(visible_detections(site, cells))),
+            visible_share=visible / site.detections if site.detections else 0.0,
+        )
+        for site in sites
+    ]
+    # sort is stable, so ties keep the shortlist order rather than shuffling.
+    return sorted(ranked, key=lambda r: r.visible_detections, reverse=True)
 
 
 def sector_breakdown(seen: pd.DataFrame, weight: str = "detections") -> pd.Series:
