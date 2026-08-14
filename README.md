@@ -10,7 +10,8 @@ watches ground that never burns, or watches the right ground at a range where a
 new plume covers four pixels. firesite answers it from 14 years of NASA FIRMS
 detections.
 
-**[Open the interactive viewer →](https://luisreinoso.dev/firesite/)**  ·  bilingual, animated, filterable
+**[Open the interactive viewer →](https://luisreinoso.dev/firesite/)**  ·  bilingual, animated,
+filterable, with two Ecuadorian areas to switch between
 
 ![14 years of fire around Cotacachi, Ecuador, playing back year by year](docs/media/firesite-demo.gif)
 
@@ -140,6 +141,13 @@ tied on range and nowhere near tied in reality:
 
 The position that looked best saw 29% of what it was ranked for. One that looked
 fourth saw 13%: it would have been a wasted deployment.
+
+The shortlist runs on range, so it can miss. In the Imbabura case the site that
+beat every candidate the search proposed, 625 visible detections against 555 for
+the range-only winner, was a house that never made the shortlist at all. Two
+kilometres west of it, a position with 1,004 detections in range sees exactly
+none of them. Which is why `evaluate` on somewhere you can actually use is worth
+more than chasing the theoretical optimum.
 
 `--cameras 2` then asks a different question: not which position is best, but
 which pair covers the most between them. Greedy marginal gain, which for this
